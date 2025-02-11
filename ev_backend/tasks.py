@@ -10,7 +10,7 @@ import logging
 import time, sys
 import pandas as pd
 import random
-import logging
+import logging, threading
 from celery import shared_task
 
 if sys.platform == 'win32':
@@ -28,49 +28,45 @@ batch_tasks = {}
 
 
 
+
 async def update_frontend_async(progress, batch_id):
+    import os
     """Send progress updates asynchronously to the frontend."""
     post_update_url = "https://insideemails.com/?wpwhpro_action=update-post-wp&wpwhpro_api_key=gukzza6i6qykirfkwc0maa59s28zxer0t6kn41uzi5j8k31cqmjkjjkqnhze6mbk&action=update_post"
     data = {"batch_id": batch_id, "progress": progress}
     if batch_tasks[batch_id]['service_type'] == 'bulk_verify':
 
         if progress == 100:
-            valid_count = sum(1 for status in batch_tasks[batch_id]['results'].values() if status == "Valid")
-            invalid_count = sum(1 for status in batch_tasks[batch_id]['results'].values() if status == "Invalid")
-            spamBlock_count = sum(1 for status in batch_tasks[batch_id]['results'].values() if status == "Spam Block")
-            risky_count = sum(1 for status in batch_tasks[batch_id]['results'].values() if status == "Catch All")
-            unknown_count = sum(1 for status in batch_tasks[batch_id]['results'].values() if status == "Unknown")
-            tempLimited_count = sum(1 for status in batch_tasks[batch_id]['results'].values() if status == "Temporary Limited")
 
-            
+            print('resutls ', batch_tasks[batch_id]['results'].values())
             df = pd.DataFrame(list(batch_tasks[batch_id]['results'].items()), columns=["Email", "Status"])
+
+            status_counts = df['Status'].value_counts()
+
+            # Assign counts with default value 0 if missing
+            valid_count = status_counts.get("Valid", 0)
+            invalid_count = status_counts.get("Invalid", 0)
+            spamBlock_count = status_counts.get("Spam Block", 0)
+            risky_count = status_counts.get("Catch All", 0)
+            unknown_count = status_counts.get("Unknown", 0)
+            tempLimited_count = status_counts.get("Temporary Limited", 0)
             # Save DataFrame to CSV
             output_file_name =  batch_tasks[batch_id]['output_file_name']
+            print('file' , output_file_name)
             df.to_csv(output_file_name, index=False)
-            output_file_url = f'https://verifier.insideemails.com/media/{output_file_name}'
-            import os
-            file_path = os.path.join(os.path.dirname(__file__), "html1.php")
-            with open(file_path, "r", encoding="utf-8") as file:
-                html_content = file.read()
+            output_file_name  = os.path.basename(output_file_name)
             
-
-            # html_content = html_content.replace("{{ deliverable_count }}", str(valid_count))
-            # html_content = html_content.replace("{{ undeliverable_count }}", str(invalid_count))
-            # html_content = html_content.replace("{{ risky_count }}", str(risky_count))
-            # html_content = html_content.replace("{{ unknown_count }}",str (unknown_count))
-            # html_content = html_content.replace("{{ spamBlock_count }}", str(spamBlock_count))
-            # html_content = html_content.replace("{{ tempLimited_count }}", str(tempLimited_count))
-            # html_content = html_content.replace("{{ output_file_name }}", str(output_file_name))
-            # html_content = html_content.replace("{{ output_file_url }}", str(output_file_url))
-            # html_content = html_content.replace("{{ email_count }}", str(batch_tasks[batch_id]['initial_count']))
+            print('file' , output_file_name)
+            output_file_url = f'http://104.154.205.214:8000/media/{output_file_name}'
+            
             
 
             post_update_payload = {
             
                            "post_id": batch_tasks[batch_id]['post_id'],
-                            "post_content": f'<div id="status" class="d-none">{batch_tasks[batch_id]["status"]}</div><div id="email_count" class="d-none">{batch_tasks[batch_id]["initial_count"]}</div><div id="progress" class="d-none">{progress}</div><br> [email_verification_report output_file_url={output_file_url}  deliverable_count={valid_count} undeliverable_count={invalid_count} risky_count= {risky_count} unknown_count = {unknown_count} spamBlock_count = {spamBlock_count} tempLimited_count = {tempLimited_count} ]',
+                            "post_content": f'<div id="status" class="d-none">{batch_tasks[batch_id]["status"]}</div><div id="email_count" class="d-none">{batch_tasks[batch_id]["initial_count"]}</div><div id="progress" class="d-none">{progress}</div><br> [email_verification_report output_file_url=f"{output_file_url}"  deliverable_count={valid_count} undeliverable_count={invalid_count} risky_count= {risky_count} unknown_count = {unknown_count} spamBlock_count = {spamBlock_count} tempLimited_count = {tempLimited_count} total_count = {batch_tasks[batch_id]["initial_count"]}]'
                         }
-        else: 
+        else:  
             post_update_payload = {
             
                             "post_id": batch_tasks[batch_id]['post_id'],
@@ -125,9 +121,9 @@ async def update_frontend_async(progress, batch_id):
             async with session.post(post_update_url, json=post_update_payload, timeout=5) as response:
                 print('request sent')
                 if response.status != 200:
-                    logging.ERROR(f"Frontend update failed: {response.status}")
+                    print(f"Frontend update failed: {response.status}")
         except Exception as e:
-            logging.ERROR(f"Error updating frontend: {e}")
+            print(f"Error updating frontend: {e}")
 
 def generate_random_triggers():
     """Generate random trigger points between 1 and 100, ensuring 100 is always included."""
