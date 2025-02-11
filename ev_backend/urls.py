@@ -5,7 +5,13 @@ from django.conf import settings
 
 urlpatterns = [
     path('', views.index, name='index'),
-    path('process_emails', views.process_emails, name='process_emails'),
+    path('bulk_email_verify', views.bulk_email_verify, name='bulk_email_verify'),
+    path('single_email_verify', views.single_email_verify, name='single_email_verify'),
+    path('find_emails', views.email_finder_view, name='email_finder_view'),
+    path('create_api_key', views.create_api_key, name='create_api_key'),
+
+
+    # 'process functions of apikey'
 
 ]
 

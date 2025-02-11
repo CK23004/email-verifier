@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-f!oi(pdluesiid+-6i3@nujho=wbjix2s$23xl45=9k92fu)1_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 # CELERY SETTINGS
 CELERY_BROKER_URL = "redis://localhost:6379/0"  # URL of Redis server
